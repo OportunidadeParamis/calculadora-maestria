@@ -336,39 +336,9 @@
   @media (max-width: 380px){
     .stat-row{ grid-template-columns: 1fr; }
   }
-  /* ===== Tela de login (bloqueia acesso até e-mail autorizado confirmar o código) ===== */
-  #loginGate{
-    position: fixed; inset: 0; z-index: 999;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--page); padding: 24px;
-  }
-  #loginGate .card{ max-width: 380px; width: 100%; }
-  #loginGate .login-msg{ font-size: 13px; margin-top: 10px; min-height: 18px; }
-  #loginGate .login-msg.erro{ color: #f28b82; }
-  #loginGate .login-msg.ok{ color: var(--text-secondary); }
-  #loginGate button[disabled]{ opacity:.55; cursor:not-allowed; }
-  .wrap{ display:none; }
-  body.autenticado .wrap{ display:block; }
-  body.autenticado #loginGate{ display:none; }
 </style>
 </head>
 <body>
-<!-- ============ TELA DE ACESSO (só e-mail) — bloqueia acesso até e-mail autorizado ============ -->
-<div id="loginGate">
-  <div class="card">
-    <h2>Acesso à Calculadora Maestria</h2>
-    <p class="hint">Informe seu e-mail para continuar.</p>
-
-    <div class="field">
-      <label>E-mail</label>
-      <input type="email" id="loginEmailInput" placeholder="seu.email@paramis.com.br" autocomplete="email">
-    </div>
-    <button type="button" class="btn-primary" id="btnEntrar" style="margin-top:14px; width:100%;">Entrar</button>
-
-    <div class="login-msg" id="loginMsg"></div>
-  </div>
-</div>
-
 <div class="wrap">
   <div class="eyebrow">
     <span class="dot"></span> MAESTRIA · CAMPANHA 2026
@@ -489,28 +459,13 @@
     <input type="hidden" id="v-dataVigente" value="">
     <input type="hidden" id="v-dataFinal" value="2027-01-31">
     <input type="hidden" id="v-diasDecorridos" value="">
+    <input type="hidden" id="v-dataUltimaDivulgacao" value="">
     <span id="v-vigenteWeekendTag" style="display:none;"></span>
-    <div class="wiz-step" data-step="situacao">
+    <div class="wiz-step" data-step="captacao">
       <div class="card">
-        <h2 class="h2-lg">Sua situação hoje</h2>
-        <div class="fund-grid" id="v-fundGridHoje"></div>
+        <h2 class="h2-lg">Quanto pretende captar até o fim da campanha?<span class="req-mark">*</span></h2>
+        <div class="fund-grid" id="v-fundGridPlano"></div>
         <div class="stat-row">
-          <div class="stat">
-            <div class="label">PL total nos fundos</div>
-            <div class="value" id="v-mediaAtualCalc">0</div>
-          </div>
-          <div class="stat">
-            <div class="label">Pontuação na última divulgação</div>
-            <div class="value" id="v-plUltimaDivulgacao">–</div>
-          </div>
-        </div>
-        <!-- "Data dessa divulgação" não é mais um campo de tela — fica só no racional do código
-             (ver recomputeVirtuose). Sem uma fonte automática pra essa data, ela fica vazia e a
-             reconciliação de lacuna simplesmente não entra em ação (comportamento equivalente a
-             lacuna=0). Quando existir uma fonte automática (ex.: Power BI/Base44), é só popular
-             este input escondido que a lógica já existente passa a funcionar sozinha. -->
-        <input type="hidden" id="v-dataUltimaDivulgacao" value="">
-        <div class="stat-row" style="margin-top:4px;">
           <div class="stat">
             <div class="label">Dias restantes até o fim da campanha</div>
             <div class="value" id="v-statDiasRestantes">0</div>
@@ -520,24 +475,14 @@
             <div class="value" id="v-statDiasTotais">0</div>
           </div>
         </div>
-      </div>
-    </div>
-    <div class="wiz-step" data-step="captacao">
-      <div class="card">
-        <h2 class="h2-lg">Quanto pretende captar até o fim da campanha?<span class="req-mark">*</span></h2>
-        <div class="fund-grid" id="v-fundGridPlano"></div>
-        <div class="stat-row compact">
+        <div class="stat-row" style="margin-top:4px;">
           <div class="stat stat-amber">
+            <div class="label">Pontuação na última divulgação<span class="req-mark">*</span></div>
+            <div class="value"><input type="text" inputmode="numeric" class="manual-field" id="v-plUltimaDivulgacao" value="" placeholder="digite aqui"></div>
+          </div>
+          <div class="stat">
             <div class="label">Captação em pontos planejada</div>
             <div class="value" id="v-statCaptacaoTotal">0</div>
-          </div>
-          <div class="stat">
-            <div class="label">PL total nos fundos</div>
-            <div class="value" id="v-statAlocacaoHojeCaptacao">0</div>
-          </div>
-          <div class="stat">
-            <div class="label">Pontuação na última divulgação</div>
-            <div class="value" id="v-statPLHojeCaptacao">0</div>
           </div>
         </div>
       </div>
@@ -595,148 +540,12 @@
   <footer>Calculadora Maestria · valores ilustrativos, calculados a partir dos números que você inserir — confirme sempre a pontuação oficial do ranking</footer>
 </div>
 <script>
-// ======================================================================
-// PORTÃO DE ACESSO — verifica se o e-mail digitado está autorizado
-// (domínio @paramis.com.br OU cadastrado na base de assessores).
-// Isso é um filtro de acesso, não uma autenticação de verdade: não confirma
-// que a pessoa é dona daquele e-mail. Os dados sensíveis (assessor_completo)
-// ficam protegidos à parte, independente dessa tela.
-// ======================================================================
-const SUPABASE_URL = 'https://wtswqdsjgfxtjqljrrhv.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_chRmK_sSPKoPpJZiSJutGA_vHTs35Hv';
-const CHAVE_ACESSO_LOCAL = 'maestria_email_liberado';
-
-function mostrarMsgLogin(texto, tipo){
-  const el = document.getElementById('loginMsg');
-  el.textContent = texto || '';
-  el.className = 'login-msg' + (tipo ? ' ' + tipo : '');
-}
-
-function liberarAcesso(){
-  document.body.classList.add('autenticado');
-}
-
-// Depois do login, tenta achar o assessor (pelo e-mail) e pré-preencher a pontuação dele
-// na tela Virtuose. Se o e-mail não corresponder a nenhum assessor (ex.: alguém do time
-// Paramis que não é assessor), simplesmente não pré-preenche nada — sem erro visível.
-let assessorLogado = null;
-
-async function carregarAssessorLogado(email){
-  try {
-    const respAssessor = await fetch(`${SUPABASE_URL}/rest/v1/rpc/buscar_assessor_por_email`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-      },
-      body: JSON.stringify({ p_email: email }),
-    });
-    if(!respAssessor.ok) return;
-    const linhas = await respAssessor.json();
-    if(!Array.isArray(linhas) || !linhas.length) return;
-    assessorLogado = linhas[0]; // { nome, codigo_xp }
-    if(!assessorLogado.nome) return;
-
-    const respRanking = await fetch(
-      `${SUPABASE_URL}/rest/v1/rpc/buscar_ranking_por_nome`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}` }, body: JSON.stringify({ p_nome: assessorLogado.nome }) }
-    );
-    if(respRanking.ok){
-      const linhasRanking = await respRanking.json();
-      if(Array.isArray(linhasRanking) && linhasRanking.length){
-        const campo = document.getElementById('v-plUltimaDivulgacao');
-        // agora é texto fixo (não editável) — sempre reflete o dado mais recente do backend
-        if(campo){
-          campo.textContent = new Intl.NumberFormat('pt-BR').format(Math.round(linhasRanking[0].pl_medio_diario_ponderado || 0));
-        }
-      }
-    }
-
-    // Alocação atual por fundo — preenche o grid "Sua situação hoje" com o valor BRUTO (não
-    // ponderado) de cada fundo; o próprio grid já multiplica pelo peso ao recalcular.
-    const respAlocacao = await fetch(
-      `${SUPABASE_URL}/rest/v1/rpc/buscar_alocacao_por_nome`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}` }, body: JSON.stringify({ p_nome: assessorLogado.nome }) }
-    );
-    if(respAlocacao.ok){
-      const linhasAlocacao = await respAlocacao.json();
-      if(Array.isArray(linhasAlocacao) && linhasAlocacao.length){
-        const valorPorAtivo = {};
-        linhasAlocacao.forEach((l) => { valorPorAtivo[l.ativo] = l.valor; });
-        FUNDOS.forEach((f, i) => {
-          if(!f.ativo) return;   // fundo ainda sem vínculo na base: preenchimento 100% manual
-          if(valorPorAtivo[f.ativo] !== undefined){
-            const input = document.querySelector(`#v-fundGridHoje .money[data-idx="${i}"]`);
-            // só pré-preenche se o assessor ainda não digitou nada manualmente nesse fundo
-            if(input && parseMoney(input.value) === 0){
-              input.value = new Intl.NumberFormat('pt-BR').format(Math.round(valorPorAtivo[f.ativo] || 0));
-            }
-          }
-        });
-      }
-    }
-
-    if(typeof recomputeAll === 'function') recomputeAll();
-  } catch(e){
-    /* silencioso — pré-preenchimento é um "bônus", nunca deve travar o resto da calculadora */
-  }
-}
-
-async function verificarEmail(){
-  const email = (document.getElementById('loginEmailInput').value || '').trim();
-  if(!email || !email.includes('@')){
-    mostrarMsgLogin('Digite um e-mail válido.', 'erro');
-    return;
-  }
-  const botao = document.getElementById('btnEntrar');
-  botao.disabled = true;
-  mostrarMsgLogin('Verificando...', 'ok');
-
-  try {
-    const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/check_email_permitido`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-      },
-      body: JSON.stringify({ p_email: email }),
-    });
-    const permitido = await resp.json();
-    botao.disabled = false;
-    if(resp.ok && permitido === true){
-      localStorage.setItem(CHAVE_ACESSO_LOCAL, email);
-      liberarAcesso();
-      carregarAssessorLogado(email);
-    } else {
-      mostrarMsgLogin('Este e-mail não está autorizado a acessar a Calculadora Maestria.', 'erro');
-    }
-  } catch(e){
-    botao.disabled = false;
-    mostrarMsgLogin('Não foi possível verificar agora. Tente novamente.', 'erro');
-  }
-}
-
-document.getElementById('btnEntrar').addEventListener('click', verificarEmail);
-document.getElementById('loginEmailInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') verificarEmail(); });
-
-// Se esse navegador já verificou um e-mail antes, libera direto sem pedir de novo.
-const emailSalvo = localStorage.getItem(CHAVE_ACESSO_LOCAL);
-if(emailSalvo){
-  liberarAcesso();
-  carregarAssessorLogado(emailSalvo);
-}
-
 // Pesos conferidos em 'Base Diversificação'[Valor Ponderado] no modelo "Power BI Campanhas - 2026 - Oficial" (18/08/2026)
 // Ordenado do MAIOR peso para o menor, de propósito: os fundos de maior peso aparecem primeiro em
 // toda grade, para induzir visualmente o assessor a captar neles primeiro.
 const FUNDOS = [
-  // "ativo" precisa ser EXATAMENTE a string de 'Base Diversificação'[Ativo] no Power BI — é por ela
-  // que o pré-preenchimento da alocação (buscar_alocacao_por_nome) casa cada fundo.
-  // ativo:null = fundo que ainda NÃO existe na base: o campo aparece na grade para o assessor
-  // digitar à mão, mas nada é puxado do Supabase. Quando o ARPEGGIO entrar na base, basta trocar
-  // null pelo nome exato do ativo (e incluí-lo na lista TREATAS do sync_pbi_to_supabase.ps1).
+  // ativo:null = fundo que ainda NÃO existe na base (ex: ARPEGGIO) — nesta versão (V1, sem
+  // login), o campo "ativo" não é usado para nada; ele só importa na V2, com pré-preenchimento.
   {name:"ARPEGGIO Renda+", ativo:null, peso:5},
   {name:"Cadenza Prev Icatu", ativo:"Icatu Cadenza Prev", peso:5},
   {name:"Avantgarde Absoluto FIM", ativo:"Avantgarde Multifatores Absoluto FIM", peso:5},
@@ -942,7 +751,6 @@ function getFundValues(containerId){
 }
 const ZERO = FUNDOS.map(()=>0);
 buildFundGrid('a-fundGridPlano', ZERO, 'plano');
-buildFundGrid('v-fundGridHoje', ZERO, '');
 buildFundGrid('v-fundGridPlano', ZERO, 'plano');
 function drawBars(containerId, items, barPx){
   const el = document.getElementById(containerId);
@@ -967,7 +775,7 @@ function drawBars(containerId, items, barPx){
 // ---------- Home + wizard navigation ----------
 const WIZARDS = {
   aumento:  ['situacao','captacao','resultado'],
-  virtuose: ['situacao','captacao','distribuicao','resultado'],
+  virtuose: ['captacao','distribuicao','resultado'],
 };
 const wizardState = { aumento:0, virtuose:0 };
 function showScreen(name){
@@ -1003,13 +811,9 @@ function renderWizardStep(ranking){
 // ---------- Campos obrigatórios: valida o passo atual antes de deixar avançar ----------
 // Cada validador olha só pro passo em que está e devolve {ok:true} ou {ok:false, el, msg} —
 // "el" é o elemento a destacar/rolar até a tela, "msg" a frase curta mostrada no aviso do wizard.
-function validateVirtuoseSituacao(){
-  // "Pontuação na última divulgação" deixou de ser um campo que o assessor preenche — vem pronta
-  // do backend. Não faz mais sentido bloquear o avanço por ela estar vazia, já que não há como o
-  // assessor corrigir isso na tela (se vier vazia, é falta de dado do lado do backend, não do usuário).
-  return {ok:true};
-}
 function validateVirtuoseCaptacao(){
+  const elDivulgacao = document.getElementById('v-plUltimaDivulgacao');
+  if(parseMoney(elDivulgacao.value)===0) return {ok:false, el:elDivulgacao, msg:'Preencha a pontuação na última divulgação para continuar.'};
   const el = document.getElementById('v-fundGridPlano');
   if(!getFundValues('v-fundGridPlano').some(v=>v>0)) return {ok:false, el, msg:'Preencha ao menos um fundo com valor de captação para continuar.'};
   return {ok:true};
@@ -1034,7 +838,7 @@ function validateAumentoCaptacao(){
   return {ok:true};
 }
 const STEP_VALIDATORS = {
-  virtuose: { situacao: validateVirtuoseSituacao, captacao: validateVirtuoseCaptacao, distribuicao: validateVirtuoseDistribuicao },
+  virtuose: { captacao: validateVirtuoseCaptacao, distribuicao: validateVirtuoseDistribuicao },
   aumento:  { situacao: validateAumentoSituacao, captacao: validateAumentoCaptacao },
 };
 function validateCurrentStep(ranking){
@@ -1177,7 +981,7 @@ document.getElementById('virtuose-btnBack').addEventListener('click', ()=>wizard
 ['a-plLargada','a-plHoje'].forEach(id=>{
   document.getElementById(id).addEventListener('input', recomputeAll);
 });
-['v-dataLargada'].forEach(id=>{
+['v-dataLargada','v-plUltimaDivulgacao'].forEach(id=>{
   document.getElementById(id).addEventListener('input', recomputeAll);
 });
 // "Dias com posição já decorridos" por padrão assume 1 dia útil = 1 dia com posição — sempre que
@@ -1200,7 +1004,7 @@ document.getElementById('v-dataVigente').addEventListener('input', ()=>{
 });
 // fim oficial da campanha muda o conjunto de meses futuros, mas não afeta dias já decorridos
 document.getElementById('v-dataFinal').addEventListener('input', ()=>{ rebuildMonthRows(); recomputeAll(); });
-['a-plLargada','a-plHoje'].forEach(id=>{
+['a-plLargada','a-plHoje','v-plUltimaDivulgacao'].forEach(id=>{
   document.getElementById(id).addEventListener('blur', (e)=>formatMoneyInput(e.target));
 });
 function recomputeAll(){
@@ -1346,17 +1150,8 @@ function recomputeVirtuose(){
   // (linha "PL de largada" = estoque diário; linha "Pontuação" = SOMA(estoques)/dias).
   // Consequência: a média só cai se o estoque diário cair, isto é, se houver RESGATE — nunca por
   // causa da conta em si. Por isso o "chão" de toda a projeção (passado e futuro) é a média já
-  // divulgada, não uma leitura pontual de um único dia.
-  const hojeVals = getFundValues('v-fundGridHoje');
-  let plHojeBruto = 0;
-  hojeVals.forEach((v)=>{ plHojeBruto += v; });
-  document.getElementById('v-mediaAtualCalc').textContent = pts(plHojeBruto);
-  const alocacaoCaptEl = document.getElementById('v-statAlocacaoHojeCaptacao'); // espelho no passo 2
-  if(alocacaoCaptEl) alocacaoCaptEl.textContent = pts(plHojeBruto);
-  // Pontuação média já divulgada: vem pronta do backend (Power BI/Supabase), não é editável.
-  const mediaPublicada = parseMoney(document.getElementById('v-plUltimaDivulgacao').textContent);
-  const plHojeCaptEl = document.getElementById('v-statPLHojeCaptacao');
-  if(plHojeCaptEl) plHojeCaptEl.textContent = pts(mediaPublicada);
+  // divulgada (digitada pelo assessor), não uma leitura pontual de um único dia.
+  const mediaPublicada = parseMoney(document.getElementById('v-plUltimaDivulgacao').value);
   // Soma do passado: a média já divulgada, achatada pelos dias já decorridos. Sem lacuna misturada
   // com nenhuma leitura pontual — é isso que garante que a média nunca cai sem resgate real.
   const somaPassada = mediaPublicada * diasDecorridos;
