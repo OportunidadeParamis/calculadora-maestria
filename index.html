@@ -181,6 +181,11 @@
   .peso-3{ background:linear-gradient(135deg,#d0a0be 0%,#b06092 100%); color:#fff; }
   .peso-4{ background:linear-gradient(135deg,#c6abd8 0%,#a073be 100%); color:#0a0910; }
   .peso-5{ background:linear-gradient(135deg,#bcb6f2 0%,var(--violet) 100%); color:#0a0910; }
+  /* peso 7 = topo da tabela (ARPEGGIO Renda+): dourado, para destacar do bloco violeta dos peso 5 */
+  .peso-7{
+    background:linear-gradient(135deg,#ffe9a3 0%,#d4a129 100%); color:#3a2600;
+    box-shadow: 0 0 0 1px rgba(255,215,0,0.35), 0 2px 10px rgba(212,161,41,0.35);
+  }
   .fund-meta{ flex:1 1 auto; min-width:0; }
   .fund-name{ font-size:13px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .fund-input-wrap{ position:relative; margin-top:2px; }
@@ -571,12 +576,14 @@
 </div>
 <script>
 // Pesos conferidos em 'Base Diversificação'[Valor Ponderado] no modelo "Power BI Campanhas - 2026 - Oficial" (18/08/2026)
+// EXCEÇÃO: ARPEGGIO Renda+ está com peso 7 por definição da campanha — esse número NÃO vem da
+// 'Base Diversificação' (o fundo ainda não existe lá). Se a base passar a trazê-lo, reconferir.
 // Ordenado do MAIOR peso para o menor, de propósito: os fundos de maior peso aparecem primeiro em
 // toda grade, para induzir visualmente o assessor a captar neles primeiro.
 const FUNDOS = [
   // ativo:null = fundo que ainda NÃO existe na base (ex: ARPEGGIO) — nesta versão (V1, sem
   // login), o campo "ativo" não é usado para nada; ele só importa na V2, com pré-preenchimento.
-  {name:"ARPEGGIO Renda+", ativo:null, peso:5},
+  {name:"ARPEGGIO Renda+", ativo:null, peso:7},
   {name:"Cadenza Prev Icatu", ativo:"Icatu Cadenza Prev", peso:5},
   {name:"Avantgarde Absoluto FIM", ativo:"Avantgarde Multifatores Absoluto FIM", peso:5},
   {name:"Avantgarde Multifatores FIA", ativo:"Avantgarde Multifatores FIF FIA RL", peso:5},
