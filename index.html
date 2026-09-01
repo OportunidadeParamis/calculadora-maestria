@@ -181,9 +181,10 @@
   .peso-3{ background:linear-gradient(135deg,#d0a0be 0%,#b06092 100%); color:#fff; }
   .peso-4{ background:linear-gradient(135deg,#c6abd8 0%,#a073be 100%); color:#0a0910; }
   .peso-5{ background:linear-gradient(135deg,#bcb6f2 0%,var(--violet) 100%); color:#0a0910; }
-  /* peso 7 = topo da tabela (ARPEGGIO Renda+): dourado, para destacar do bloco violeta dos peso 5 */
+  /* peso 7 = topo da tabela (ARPEGGIO Renda+): badge dourado com o número em azul escuro —
+     é o único fundo fora da escala violeta, justamente para saltar aos olhos na grade. */
   .peso-7{
-    background:linear-gradient(135deg,#ffe9a3 0%,#d4a129 100%); color:#3a2600;
+    background:linear-gradient(135deg,#ffe9a3 0%,#d4a129 100%); color:#2a1f6b;
     box-shadow: 0 0 0 1px rgba(255,215,0,0.35), 0 2px 10px rgba(212,161,41,0.35);
   }
   .fund-meta{ flex:1 1 auto; min-width:0; }
@@ -817,9 +818,15 @@ function parseMoney(str){
   const n = parseFloat(s);
   return isNaN(n) ? 0 : Math.round(n);
 }
+// "campo vazio" e "campo com zero" são coisas diferentes: 0 é uma pontuação legítima (quem entrou
+// na campanha zerado tem largada = 0). Só é vazio o campo sem NENHUM dígito — assim o zero digitado
+// sobrevive ao blur e passa pelas validações de obrigatoriedade.
+function temValor(el){ return /\d/.test((el && el.value) || ''); }
 function formatMoneyInput(el){
   const v = parseMoney(el.value);
-  el.value = v ? new Intl.NumberFormat('pt-BR').format(v) : '';
+  // Antes era `v ? formata : ''`, o que apagava o campo quando o valor digitado era 0 — na prática,
+  // impossibilitava registrar pontuação de largada 0.
+  el.value = temValor(el) ? new Intl.NumberFormat('pt-BR').format(v) : '';
   return v;
 }
 function parseNum(str){ const n = parseInt((str||'').replace(/[^\d]/g,''),10); return isNaN(n)?0:n; }
@@ -950,9 +957,9 @@ function renderWizardStep(ranking){
 // "el" é o elemento a destacar/rolar até a tela, "msg" a frase curta mostrada no aviso do wizard.
 function validateVirtuoseCaptacao(){
   const elLargada = document.getElementById('v-pontLargada');
-  if(parseMoney(elLargada.value)===0) return {ok:false, el:elLargada, msg:'Preencha a pontuação na largada para continuar.'};
+  if(!temValor(elLargada)) return {ok:false, el:elLargada, msg:'Preencha a pontuação na largada para continuar.'};
   const elDivulgacao = document.getElementById('v-plUltimaDivulgacao');
-  if(parseMoney(elDivulgacao.value)===0) return {ok:false, el:elDivulgacao, msg:'Preencha a pontuação na última divulgação para continuar.'};
+  if(!temValor(elDivulgacao)) return {ok:false, el:elDivulgacao, msg:'Preencha a pontuação na última divulgação para continuar.'};
   const el = document.getElementById('v-fundGridPlano');
   if(!getFundValues('v-fundGridPlano').some(v=>v>0)) return {ok:false, el, msg:'Preencha ao menos um fundo com valor de captação para continuar.'};
   return {ok:true};
@@ -967,8 +974,9 @@ function validateVirtuoseDistribuicao(){
 function validateAumentoSituacao(){
   const largada = document.getElementById('a-plLargada');
   const hoje = document.getElementById('a-plHoje');
-  if(parseMoney(largada.value)===0) return {ok:false, el:largada, msg:'Preencha a pontuação na largada para continuar.'};
-  if(parseMoney(hoje.value)===0) return {ok:false, el:hoje, msg:'Preencha a pontuação na última divulgação para continuar.'};
+  // Obrigatório = preenchido, não "maior que zero": 0 é um ponto de partida válido.
+  if(!temValor(largada)) return {ok:false, el:largada, msg:'Preencha a pontuação na largada para continuar.'};
+  if(!temValor(hoje)) return {ok:false, el:hoje, msg:'Preencha a pontuação na última divulgação para continuar.'};
   return {ok:true};
 }
 function validateAumentoCaptacao(){
@@ -1368,7 +1376,9 @@ function recomputeVirtuose(){
   // competidores do mesmo perfil+cluster.
   // Virtuose: entro no ranking de classificação só se a média projetada alcançar a minha
   // própria pontuação de largada — mesma regra do RANKX filtrado no TMDL.
-  renderPosicao('v', 'virtuose', novaMedia, pontLargada > 0 && novaMedia >= pontLargada);
+  // O gate é "largada preenchida", não "largada > 0" — com largada 0 qualquer projeção já alcança a
+  // própria largada, então quem começou zerado entra no ranking de classificação normalmente.
+  renderPosicao('v', 'virtuose', novaMedia, temValor(document.getElementById('v-pontLargada')) && novaMedia >= pontLargada);
   revalidateActiveStep('virtuose');
 }
 // ---------- Datas automáticas (substituem a antiga tela "linha do tempo") ----------
