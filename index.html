@@ -141,33 +141,6 @@
   .ranking-link:hover{ background:rgba(144,133,233,0.20); color:var(--text-primary); }
   .eyebrow .ranking-link{ margin-left:auto; }
   .card .hint b{ color: var(--text-secondary); }
-  /* Link "ver ranking": mora DENTRO do campo que ele ajuda a preencher, logo abaixo do input.
-     Antes eram dois cards largos empilhados sob os dois campos — a associação entre link e
-     campo dependia da ordem de leitura, não da posição, e o bloco ocupava duas faixas inteiras
-     da tela. Aqui cada link fica colado no seu campo e some da hierarquia visual: quem já sabe
-     a própria pontuação simplesmente não repara nele.
-     Só aparece quando a constante do link está preenchida E perfil/cluster já foram escolhidos. */
-  a.ranking-inline{
-    align-self:flex-start; width:fit-content; max-width:100%;
-    display:inline-flex; align-items:center; gap:8px; margin-top:12px;
-    text-decoration:none; font-family:inherit; font-size:12.5px; font-weight:600;
-    color:var(--violet); cursor:pointer;
-    transition: color .15s ease;
-  }
-  .ranking-inline .ri-icon{
-    flex:0 0 auto; width:22px; height:22px; border-radius:7px;
-    display:inline-flex; align-items:center; justify-content:center;
-    background:rgba(144,133,233,0.16); color:var(--violet); font-size:12px; font-weight:800;
-    transition: background .15s ease, transform .15s ease;
-  }
-  .ranking-inline .ri-text{ border-bottom:1px solid transparent; transition: border-color .15s ease; }
-  a.ranking-inline:hover{ color:#cfc9ff; }
-  a.ranking-inline:hover .ri-icon{ background:rgba(144,133,233,0.32); transform:translate(1px,-1px); }
-  a.ranking-inline:hover .ri-text{ border-bottom-color:currentColor; }
-  a.ranking-inline:focus-visible{ outline:2px solid var(--violet); outline-offset:3px; border-radius:4px; }
-  @media (max-width: 640px){
-    a.ranking-inline{ font-size:12px; margin-top:10px; }
-  }
   /* minimalist pulsing (!) info badge — replaces long caption paragraphs; click reveals a small popover */
   .info-wrap{ position:relative; display:inline-block; margin-left:8px; vertical-align:middle; }
   .info-badge{
@@ -462,17 +435,11 @@
           <div class="field">
             <label>Pontuação na largada<span class="req-mark">*</span></label>
             <input type="text" inputmode="numeric" class="big-number" id="a-plLargada" value="" placeholder="digite aqui">
-            <a class="ranking-inline" id="a-rankingCard-largada" target="_blank" rel="noopener" style="display:none;">
-              <span class="ri-icon">↗</span><span class="ri-text">Veja sua pontuação na largada</span>
-            </a>
-          </div>
+                      </div>
           <div class="field">
             <label>Pontuação na última divulgação<span class="req-mark">*</span></label>
             <input type="text" inputmode="numeric" class="big-number" id="a-plHoje" value="" placeholder="digite aqui">
-            <a class="ranking-inline" id="a-rankingCard-recente" target="_blank" rel="noopener" style="display:none;">
-              <span class="ri-icon">↗</span><span class="ri-text">Veja sua pontuação na última divulgação</span>
-            </a>
-          </div>
+                      </div>
         </div>
         <div class="stat-row">
           <div class="stat">
@@ -532,17 +499,11 @@
           <div class="stat stat-amber stat-wide">
             <div class="label">Pontuação na largada<span class="req-mark">*</span></div>
             <div class="value"><input type="text" inputmode="numeric" class="manual-field" id="v-pontLargada" value="" placeholder="digite aqui"></div>
-            <a class="ranking-inline" id="v-rankingCard-largada" target="_blank" rel="noopener" style="display:none;">
-              <span class="ri-icon">↗</span><span class="ri-text">Veja sua pontuação na largada</span>
-            </a>
-          </div>
+                      </div>
           <div class="stat stat-amber stat-wide">
             <div class="label">Pontuação na última divulgação<span class="req-mark">*</span></div>
             <div class="value"><input type="text" inputmode="numeric" class="manual-field" id="v-plUltimaDivulgacao" value="" placeholder="digite aqui"></div>
-            <a class="ranking-inline" id="v-rankingCard-recente" target="_blank" rel="noopener" style="display:none;">
-              <span class="ri-icon">↗</span><span class="ri-text">Veja sua pontuação na última divulgação</span>
-            </a>
-          </div>
+                      </div>
         </div>
       </div>
       <div class="card">
@@ -661,50 +622,23 @@ const LINK_RANKING_OFICIAL = '';
 // ======================================================================
 // PÁGINAS DE RANKING — cards abaixo dos dois campos de pontuação
 // ======================================================================
-// As duas páginas de ranking moram NO MESMO REPOSITÓRIO, ao lado deste arquivo, e são servidas
-// pelo mesmo GitHub Pages. Por isso o caminho é relativo: quem consegue abrir a calculadora
-// consegue abrir o ranking — sem login, sem permissão extra, sem depender de outro serviço.
-//   LARGADA = divulgação de 03/08, que fixou a pontuação de largada. Histórica: nunca muda.
-//   RECENTE = divulgação mais nova. O NOME DO ARQUIVO é fixo; o que muda a cada divulgação é o
-//             conteúdo dele. Por isso esta linha nunca precisa ser editada — basta commitar o
-//             ranking novo por cima, com o mesmo nome.
-// Os dois arquivos saem do preparar-ranking.py (modo site), que corrige o HTML do gerador.
-// ATENÇÃO: essas páginas listam NOME e PONTUAÇÃO de todos os assessores. Enquanto o
-// repositório for público, elas ficam abertas na internet junto com a calculadora.
-const LINK_RANKING_LARGADA = 'ranking-largada.html';
+// A página da divulgação mais recente mora NO MESMO REPOSITÓRIO, ao lado deste arquivo, e é
+// servida pelo mesmo GitHub Pages — por isso o caminho é relativo.
+//
+// A calculadora NÃO mostra mais link para o ranking: o assessor nunca abre esse arquivo. Ele é
+// lido por baixo dos panos (ver carregarRankingDaDivulgacao, mais abaixo) para saber em que
+// posição a pontuação simulada cairia. Ou seja: ele PRECISA continuar publicado no repositório,
+// mesmo sem nada apontando para ele na tela. Se sumir, a calculadora não quebra — ela cai calada
+// no snapshot embutido, que vai envelhecendo sem ninguém perceber.
+//
+// O NOME DO ARQUIVO é fixo; o que muda a cada divulgação é o conteúdo. Por isso esta linha nunca
+// precisa ser editada — basta commitar o ranking novo por cima, com o mesmo nome. O arquivo sai
+// do preparar-ranking.py (modo site), que corrige o HTML do gerador.
+//
+// ATENÇÃO: essa página lista NOME e PONTUAÇÃO de todos os assessores. Enquanto o repositório for
+// público, ela fica aberta na internet junto com a calculadora — mesmo sem link para ela.
 const LINK_RANKING_RECENTE = 'ranking-recente.html';
-// De/para entre os códigos da calculadora e os rótulos das abas da página de ranking.
-const RANKING_TIPO   = { assessor:'Assessor', filial:'Filiais' };
-const RANKING_CAT    = { diamante:'Diamante', ouro:'Ouro', prata:'Prata' };
-const RANKING_CAMPANHA = { aumento:'Crescendo', virtuose:'Virtuose' };
-// Monta os links e mostra/esconde os cards. Chamada sempre que perfil ou cluster mudam.
-// São dois cards por tela — cada um embaixo do campo que ele ajuda a preencher.
-function aplicarLinkLargada(){
-  const { perfil, cluster } = perfilState;
-  const alvos = [
-    ['a','aumento', 'largada', LINK_RANKING_LARGADA],
-    ['a','aumento', 'recente', LINK_RANKING_RECENTE],
-    ['v','virtuose','largada', LINK_RANKING_LARGADA],
-    ['v','virtuose','recente', LINK_RANKING_RECENTE],
-  ];
-  alvos.forEach(([prefixo, ranking, papel, base])=>{
-    const card = document.getElementById(prefixo+'-rankingCard-'+papel);
-    if(!card) return;
-    if(!base || !perfil || !cluster){ card.style.display = 'none'; return; }
-    const p = new URLSearchParams({
-      campanha: RANKING_CAMPANHA[ranking],
-      tipo: RANKING_TIPO[perfil],
-      cat: RANKING_CAT[cluster],
-    });
-    card.href = base + (base.includes('?') ? '&' : '?') + p.toString();
-    // O recorte de destino vai no tooltip, não na tela: o assessor acabou de escolher perfil e
-    // cluster duas telas atrás, então repetir isso em cada link só polui. Fica disponível para
-    // quem passar o mouse e quiser conferir antes de clicar.
-    card.title = `Abre o ranking ${RANKING_CAMPANHA[ranking]} · ${RANKING_TIPO[perfil]} ${RANKING_CAT[cluster]}`
-               + (papel === 'largada' ? ' — divulgação de 03/08' : ' — divulgação mais recente');
-    card.style.display = 'inline-flex';
-  });
-}
+
 (function aplicarLinkRanking(){
   if(!LINK_RANKING_OFICIAL) return;
   const chip = document.getElementById('linkRankingTopo');
@@ -1217,7 +1151,6 @@ document.querySelectorAll('#perfilToggle .toggle-btn').forEach(btn=>{
     });
     perfilState.cluster = null;
     rankingRevealWrap.classList.remove('shown');
-    aplicarLinkLargada(); // cluster zerado -> card some até a nova escolha
     revealEl(clusterFieldWrap);
   });
 });
@@ -1226,7 +1159,6 @@ clusterToggleEl.querySelectorAll('.toggle-btn').forEach(btn=>{
     clusterToggleEl.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     perfilState.cluster = btn.dataset.cluster;
-    aplicarLinkLargada(); // perfil+cluster definidos -> card aponta para o ranking daquele grupo
     revealEl(rankingRevealWrap);
     recomputeAll();
   });
